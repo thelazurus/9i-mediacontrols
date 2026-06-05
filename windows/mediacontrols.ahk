@@ -143,7 +143,7 @@ MakeBar(vol) {
 ; ── MODE MANAGEMENT ─────────────────────────────────────────────
 EnterMode() {
     global g_mode := true
-    ShowAction("◆  MEDIA MODE", "←  prev    →  next    ↑  vol+    ↓  vol−    Space  play", TIMEOUT_ENTER)
+    ShowAction("◆  MEDIA MODE", HINTS, TIMEOUT_ENTER)
 }
 
 ExitMode() {
@@ -157,7 +157,7 @@ AutoExit() {
 }
 
 ; ── MEDIA COMMANDS ──────────────────────────────────────────────
-HINTS := "←  prev    →  next    ↑  vol+    ↓  vol−    Space  play"
+HINTS := "← prev  → next  ↑ vol+  ↓ vol−  Space play  Esc exit"
 
 DoMedia(action) {
     Critical "On"   ; high priority — don't let other threads interrupt mid-action
