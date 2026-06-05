@@ -19,7 +19,7 @@ SetWorkingDir A_ScriptDir
 ;  open "Key History", press the key, look at the VK/SC column.
 ;  Common values for Yoga function keys: F20, F21, F22, Browser_Favorites
 STAR_KEY       := "^!+k" ; Ctrl+Alt+Shift+K — swap for your star key when sorted
-TIMEOUT_ENTER  := 1500   ; ms before mode exits after entering (no key pressed)
+TIMEOUT_ENTER  := 2000   ; ms before mode exits after entering (no key pressed)
 TIMEOUT_ACTION := 800    ; ms before mode exits after each action
 VOL_STEP       := 2      ; Volume_Up/Down presses per arrow keypress
 
@@ -114,13 +114,13 @@ ShowAction(action_text, hints_text, timeout_ms) {
     lbl_hints.Value  := hints_text
 
     if !g_visible {
-        g_alpha    := 0
-        g_animCurY := g_slideY
-        osd.Show("x" g_osdX " y" g_slideY " w" OSD_W " h" OSD_H " NoActivate")
-        WinSetTransparent(0, osd)
+        g_alpha    := 220
+        g_animCurY := g_osdY
+        osd.Show("x" g_osdX " y" g_osdY " w" OSD_W " h" OSD_H " NoActivate")
+        WinSetTransparent(220, osd)
         g_visible := true
     }
-    g_animDir := 1
+    g_animDir := 0  ; no fade-in — appear instantly, only fade out on exit
 
     SetTimer(AutoExit, -timeout_ms)
 }
