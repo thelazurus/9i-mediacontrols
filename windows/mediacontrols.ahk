@@ -3,124 +3,123 @@
 SetWorkingDir A_ScriptDir
 
 ; ╔══════════════════════════════════════════════════════════════╗
-; ║  9i Media Controls  —  Windows                              ║
+; ║  9i Media Controls  —  Windows  (arrow-key layout)          ║
 ; ║                                                              ║
-; ║  Press the star key to enter MEDIA MODE, then:              ║
-; ║    ←  Previous track      →  Next track                     ║
-; ║    ↑  Play / Pause        ↓  Stop                          ║
-; ║    Esc  Exit mode                                           ║
-; ║                                                              ║
-; ║  Run this script once, then press the star key and check    ║
-; ║  View → Key History in the tray icon to find STAR_KEY.      ║
+; ║  Press Ctrl+Alt+Shift+K to enter MEDIA MODE, then:          ║
+; ║    ←  Prev    →  Next    ↑  Play/Pause    ↓  Stop           ║
 ; ╚══════════════════════════════════════════════════════════════╝
 
-; ── CONFIGURATION ───────────────────────────────────────────────
-;  To find your star key name: right-click the AHK tray icon,
-;  open "Key History", press the key, look at the VK/SC column.
-;  Common values for Yoga function keys: F20, F21, F22, Browser_Favorites
-STAR_KEY       := "^!+k" ; Ctrl+Alt+Shift+K — swap for your star key when sorted
-TIMEOUT_ENTER  := 2000   ; ms before mode exits after entering (no key pressed)
+; ── CONFIG ──────────────────────────────────────────────────────
+TIMEOUT_ENTER  := 2000   ; ms before mode exits (no key pressed)
 TIMEOUT_ACTION := 800    ; ms before mode exits after each action
 
 ; ── OSD APPEARANCE ──────────────────────────────────────────────
-OSD_W    := 420
-OSD_H    := 110
 OSD_FONT := "Lucida Console"
-OSD_FS   := 19          ; action label font size
-OSD_FS2  := 10          ; hint bar font size
-COL_BG   := "0C0C0C"   ; near-black background
-COL_FG   := "FFB000"   ; amber phosphor
-COL_DIM  := "7A5200"   ; dimmer amber for hints
-COL_BDR  := "A06A00"   ; border colour
+COL_BG   := "0C0C0C"
+COL_FG   := "FFB000"   ; amber
+COL_DIM  := "7A5200"   ; dim amber for labels
+COL_BDR  := "A06A00"   ; tile border amber
+
+; ── TILE GEOMETRY ───────────────────────────────────────────────
+TW  := 72    ; tile width
+TH  := 70    ; tile height
+GAP := 4     ; gap between/around tiles
+
+; Derived layout values
+UP_X  := GAP + TW + GAP                  ; x of up/down/right column  = 80
+ROW_Y := GAP + TH + GAP                  ; y where the bottom row begins = 78
+OSD_W := GAP*4 + TW*3                    ; total width  = 232
+OSD_H := GAP*3 + TH*2                    ; total height = 152
 
 ; ── STATE ───────────────────────────────────────────────────────
 global g_mode    := false
 global g_visible := false
+global g_alpha   := 0
+global g_animDir := 0
 
-; ── BUILD OSD ───────────────────────────────────────────────────
+; ── OSD BUILD ───────────────────────────────────────────────────
 global osd := Gui("+AlwaysOnTop -Caption +ToolWindow", "9iMediaOSD")
 osd.BackColor := COL_BG
 
-; Top + bottom border strips
-osd.Add("Text", "x0 y0 w"    OSD_W " h2 Background" COL_BDR, "")
-osd.Add("Text", "x0 y" (OSD_H - 2) " w" OSD_W " h2 Background" COL_BDR, "")
+; Draw one tile border (four 1px strips)
+DrawTileBorder(x, y) {
+    global osd, TW, TH, COL_BDR
+    osd.Add("Text", "x" x        " y" y        " w" TW    " h1 Background" COL_BDR, "")
+    osd.Add("Text", "x" x        " y" (y+TH-1) " w" TW    " h1 Background" COL_BDR, "")
+    osd.Add("Text", "x" x        " y" y        " w1 h"    TH " Background"  COL_BDR, "")
+    osd.Add("Text", "x" (x+TW-1) " y" y        " w1 h"    TH " Background"  COL_BDR, "")
+}
 
-; Divider above hint bar
-osd.Add("Text", "x10 y" (OSD_H - 35) " w" (OSD_W - 20) " h1 Background" COL_DIM, "")
+; Place the arrow symbol and action label inside a tile
+DrawTileContent(x, y, symbol, label) {
+    global osd, TW, TH, OSD_FONT, COL_FG, COL_DIM
+    osd.SetFont("s26 c" COL_FG " Bold", OSD_FONT)
+    osd.Add("Text", "x" x " y" (y+10) " w" TW " Center BackgroundTrans", symbol)
+    osd.SetFont("s9 c" COL_DIM, OSD_FONT)
+    osd.Add("Text", "x" x " y" (y+TH-20) " w" TW " Center BackgroundTrans", label)
+}
 
-; Action label (big, centred, amber)
-osd.SetFont("s" OSD_FS " c" COL_FG " Bold", OSD_FONT)
-global lbl_action := osd.Add("Text", "x0 y16 w" OSD_W " h50 Center +0x200", "")
+RGT_X := UP_X + TW + GAP   ; x of right tile = 152
 
-; Hint bar (small, dimmer)
-osd.SetFont("s" OSD_FS2 " c" COL_DIM " Bold", OSD_FONT)
-global lbl_hints := osd.Add("Text", "x0 y" (OSD_H - 28) " w" OSD_W " h22 Center +0x200", "")
+DrawTileBorder(UP_X, GAP)           ; ↑  play/pause
+DrawTileBorder(GAP,  ROW_Y)         ; ←  prev
+DrawTileBorder(UP_X, ROW_Y)         ; ↓  stop
+DrawTileBorder(RGT_X, ROW_Y)        ; →  next
 
-; Compute position: bottom-centre of working area
+DrawTileContent(UP_X, GAP,    "↑", "play/pause")
+DrawTileContent(GAP,  ROW_Y,  "←", "prev")
+DrawTileContent(UP_X, ROW_Y,  "↓", "stop")
+DrawTileContent(RGT_X, ROW_Y, "→", "next")
+
+; ── POSITION & SHAPE ────────────────────────────────────────────
 MonitorGetWorkArea(, &mL, &mT, &mR, &mB)
-global g_scrW  := mR - mL
-global g_osdX  := mL + (g_scrW - OSD_W) // 2
-global g_osdY  := mB - OSD_H - 40          ; final Y when shown
-global g_slideY := g_osdY + 28             ; start Y (slides up from here)
+global g_osdX := mR - OSD_W - 24
+global g_osdY := mB - OSD_H - 24
 
-; Prime the window in Windows' memory so the first real Show is instant,
-; and set transparency once here rather than on every Show call.
+; Clip to inverted-T polygon: up column on top, full row on bottom
+global g_region := UP_X "-0 "
+    . (UP_X+TW) "-0 "
+    . (UP_X+TW) "-" ROW_Y " "
+    . OSD_W     "-" ROW_Y " "
+    . OSD_W     "-" OSD_H " "
+    . "0-"          OSD_H " "
+    . "0-"          ROW_Y " "
+    . UP_X      "-" ROW_Y
+
+; Prime window so first show is instant
 osd.Show("x" g_osdX " y" g_osdY " w" OSD_W " h" OSD_H " NoActivate")
 WinSetTransparent(0, osd)
+WinSetRegion(g_region, osd)
 osd.Hide()
 
-; ── ANIMATION STATE ─────────────────────────────────────────────
-global g_alpha     := 0
-global g_animDir   := 0     ; 1 = fade in, -1 = fade out, 0 = idle
-global g_animCurY  := g_slideY
-
+; ── ANIMATION (fade-out only) ────────────────────────────────────
 SetTimer(AnimTick, 16)
 
 AnimTick() {
-    global g_alpha, g_animDir, g_animCurY, g_visible
-    if g_animDir = 0
+    global g_alpha, g_animDir, g_visible
+    if g_animDir != -1
         return
-
-    if g_animDir = 1 {
-        ; Fade + slide in
-        g_alpha   := Min(220, g_alpha + 32)
-        g_animCurY := Round(g_animCurY + (g_osdY - g_animCurY) * 0.35)
-        WinMove(g_osdX, g_animCurY,,, osd)
-        WinSetTransparent(g_alpha, osd)
-        if g_alpha >= 220 {
-            g_animDir := 0
-            g_animCurY := g_osdY
-            WinMove(g_osdX, g_osdY,,, osd)
-            WinSetTransparent(220, osd)
-        }
-    } else {
-        ; Fade out
-        g_alpha := Max(0, g_alpha - 36)
-        WinSetTransparent(g_alpha, osd)
-        if g_alpha = 0 {
-            g_animDir := 0
-            g_visible := false
-            osd.Hide()
-        }
+    g_alpha := Max(0, g_alpha - 40)
+    WinSetTransparent(g_alpha, osd)
+    if g_alpha = 0 {
+        g_animDir := 0
+        g_visible := false
+        osd.Hide()
     }
 }
 
-; ── OSD HELPERS ─────────────────────────────────────────────────
-ShowAction(action_text, hints_text, timeout_ms) {
-    global g_alpha, g_animDir, g_animCurY, g_visible
-
-    lbl_action.Value := action_text
-    lbl_hints.Value  := hints_text
-
+; ── OSD SHOW / HIDE ─────────────────────────────────────────────
+ShowOSD(timeout_ms) {
+    global g_alpha, g_animDir, g_visible
+    SetTimer(AutoExit, 0)
     if !g_visible {
-        g_alpha    := 220
-        g_animCurY := g_osdY
+        g_alpha := 220
         osd.Show("x" g_osdX " y" g_osdY " w" OSD_W " h" OSD_H " NoActivate")
         WinSetTransparent(220, osd)
+        WinSetRegion(g_region, osd)
         g_visible := true
     }
-    g_animDir := 0  ; no fade-in — appear instantly, only fade out on exit
-
+    g_animDir := 0
     SetTimer(AutoExit, -timeout_ms)
 }
 
@@ -130,10 +129,10 @@ HideOSD() {
     g_animDir := -1
 }
 
-; ── MODE MANAGEMENT ─────────────────────────────────────────────
+; ── MODE ────────────────────────────────────────────────────────
 EnterMode() {
     global g_mode := true
-    ShowAction("◆  MEDIA MODE", HINTS, TIMEOUT_ENTER)
+    ShowOSD(TIMEOUT_ENTER)
 }
 
 ExitMode() {
@@ -146,33 +145,19 @@ AutoExit() {
     HideOSD()
 }
 
-; ── MEDIA COMMANDS ──────────────────────────────────────────────
-HINTS := "← prev  → next  ↑ play/pause  ↓ stop  Esc exit"
-
+; ── MEDIA ───────────────────────────────────────────────────────
 DoMedia(action) {
-    Critical "On"   ; high priority — don't let other threads interrupt mid-action
-    SetTimer(AutoExit, 0)
-
+    Critical "On"
     switch action {
-        case "PREV":
-            Send "{Media_Prev}"
-            ShowAction("◄◄  PREV TRACK", HINTS, TIMEOUT_ACTION)
-        case "NEXT":
-            Send "{Media_Next}"
-            ShowAction("NEXT TRACK  ►►", HINTS, TIMEOUT_ACTION)
-        case "PLAYPAUSE":
-            Send "{Media_Play_Pause}"
-            ShowAction("▌▌  PLAY / PAUSE", HINTS, TIMEOUT_ACTION)
-        case "STOP":
-            Send "{Media_Stop}"
-            ShowAction("■  STOP", HINTS, TIMEOUT_ACTION)
-
+        case "PREV": Send "{Media_Prev}"
+        case "NEXT": Send "{Media_Next}"
+        case "PLAY": Send "{Media_Play_Pause}"
+        case "STOP": Send "{Media_Stop}"
     }
+    ShowOSD(TIMEOUT_ACTION)
 }
 
 ; ── HOTKEYS ─────────────────────────────────────────────────────
-; Static hotkey — if you change STAR_KEY to a bare key name (e.g. "F20")
-; switch this back to:  Hotkey STAR_KEY, StarPress
 ^!+k:: {
     Critical "On"
     if !g_mode
@@ -184,15 +169,7 @@ DoMedia(action) {
 #HotIf g_mode
 Left::  DoMedia("PREV")
 Right:: DoMedia("NEXT")
-Up::    DoMedia("PLAYPAUSE")
+Up::    DoMedia("PLAY")
 Down::  DoMedia("STOP")
-Esc:: ExitMode()
+Esc::   ExitMode()
 #HotIf
-
-; ── KEY DETECTION HELPER ────────────────────────────────────────
-; If you don't know your star key name, uncomment the line below,
-; reload the script, press your star key, then open:
-;   right-click tray icon → View → Key History & Script Info
-; Look at the VK (virtual key) or SC (scan code) columns.
-;
-; ~*F1:: KeyHistory()
