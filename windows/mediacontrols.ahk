@@ -14,22 +14,23 @@ TIMEOUT_ENTER  := 2000
 TIMEOUT_ACTION := 800
 
 ; ── APPEARANCE ──────────────────────────────────────────────────
-COL_BG   := "0C0C0C"   ; gap / outer background
-COL_TILE := "171717"   ; tile fill (subtly lighter)
-COL_FG   := "FFB000"   ; amber — symbols
-COL_DIM  := "7A5200"   ; dim amber — labels
-COL_BDR  := "A06A00"   ; tile border
+; GUI background doubles as tile fill — no separate fill controls needed.
+; This avoids the z-order repaint issue with overlapping static controls.
+COL_BG  := "131313"   ; tile background (and outer fill, clipped to T by region)
+COL_FG  := "FFB000"   ; amber — symbols
+COL_DIM := "7A5200"   ; dim amber — labels
+COL_BDR := "A06A00"   ; tile border
 
 ; ── TILE GEOMETRY ───────────────────────────────────────────────
-TW  := 74    ; tile width
-TH  := 72    ; tile height
-GAP := 5     ; gap between / around tiles
+TW  := 74
+TH  := 72
+GAP := 5
 
-UP_X  := GAP + TW + GAP               ; x of centre column   =  84
-ROW_Y := GAP + TH + GAP               ; y of bottom row       =  82
-OSD_W := GAP*4 + TW*3                 ; total width           = 242
-OSD_H := GAP*3 + TH*2                 ; total height          = 159
-RGT_X := UP_X + TW + GAP              ; x of right tile       = 163
+UP_X  := GAP + TW + GAP          ; centre column x  =  84
+ROW_Y := GAP + TH + GAP          ; bottom row y      =  82
+OSD_W := GAP*4 + TW*3            ; total width       = 242
+OSD_H := GAP*3 + TH*2            ; total height      = 159
+RGT_X := UP_X + TW + GAP         ; right tile x      = 163
 
 ; ── STATE ───────────────────────────────────────────────────────
 global g_mode    := false
@@ -41,31 +42,30 @@ global g_animDir := 0
 global osd := Gui("+AlwaysOnTop -Caption +ToolWindow", "9iMediaOSD")
 osd.BackColor := COL_BG
 
-; Draw one complete tile (background + borders + symbol + label)
+; Draw a tile: text controls first (lower z-order), borders last (always on top).
+; Background on each text control matches COL_BG so there are no overlapping
+; fill controls — avoids Windows static control repaint/z-order issues.
 DrawTile(x, y, symbol, label) {
-    global osd, TW, TH, COL_TILE, COL_BDR, COL_FG, COL_DIM
+    global osd, TW, TH, COL_BG, COL_FG, COL_DIM, COL_BDR
 
-    ; Tile fill
-    osd.Add("Text", "x" x " y" y " w" TW " h" TH " Background" COL_TILE, "")
-
-    ; Borders (drawn after fill so they sit on top)
-    osd.Add("Text", "x" x        " y" y        " w"  TW    " h1 Background" COL_BDR, "")
-    osd.Add("Text", "x" x        " y" (y+TH-1) " w"  TW    " h1 Background" COL_BDR, "")
-    osd.Add("Text", "x" x        " y" y        " w1 h"  TH " Background"    COL_BDR, "")
-    osd.Add("Text", "x" (x+TW-1) " y" y        " w1 h"  TH " Background"    COL_BDR, "")
-
-    ; Arrow symbol — Consolas has solid Unicode arrow coverage
+    ; Symbol — added before borders so borders paint on top at edges
     osd.SetFont("s24 c" COL_FG " Bold", "Consolas")
-    osd.Add("Text", "x" x " y" (y+8) " w" TW " h32 Center Background" COL_TILE, symbol)
+    osd.Add("Text", "x" x " y" (y+8) " w" TW " h34 Center Background" COL_BG, symbol)
 
-    ; Action label
+    ; Label
     osd.SetFont("s8 c" COL_DIM, "Consolas")
-    osd.Add("Text", "x" (x+2) " y" (y+TH-19) " w" (TW-4) " h16 Center Background" COL_TILE, label)
+    osd.Add("Text", "x" x " y" (y+TH-22) " w" TW " h18 Center Background" COL_BG, label)
+
+    ; Borders last — highest z-order, always visible over text edges
+    osd.Add("Text", "x" x        " y" y        " w"  TW " h1  Background" COL_BDR, "")
+    osd.Add("Text", "x" x        " y" (y+TH-1) " w"  TW " h1  Background" COL_BDR, "")
+    osd.Add("Text", "x" x        " y" y        " w1 h" TH " Background"   COL_BDR, "")
+    osd.Add("Text", "x" (x+TW-1) " y" y        " w1 h" TH " Background"   COL_BDR, "")
 }
 
-DrawTile(UP_X, GAP,   "↑", "play/pause")
-DrawTile(GAP,  ROW_Y, "←", "prev")
-DrawTile(UP_X, ROW_Y, "↓", "stop")
+DrawTile(UP_X,  GAP,   "↑", "play/pause")
+DrawTile(GAP,   ROW_Y, "←", "prev")
+DrawTile(UP_X,  ROW_Y, "↓", "stop")
 DrawTile(RGT_X, ROW_Y, "→", "next")
 
 ; ── POSITION & CLIP TO INVERTED-T ───────────────────────────────
@@ -73,16 +73,17 @@ MonitorGetWorkArea(, &mL, &mT, &mR, &mB)
 global g_osdX := mR - OSD_W - 24
 global g_osdY := mB - OSD_H - 24
 
-global g_region := UP_X        "-0 "
-    . (UP_X+TW) "-0 "
-    . (UP_X+TW) "-" ROW_Y " "
-    . OSD_W     "-" ROW_Y " "
-    . OSD_W     "-" OSD_H " "
-    . "0-"          OSD_H " "
-    . "0-"          ROW_Y " "
-    . UP_X      "-" ROW_Y
+global g_region
+    := UP_X         "-0 "
+    . (UP_X+TW)     "-0 "
+    . (UP_X+TW)     "-" ROW_Y " "
+    . OSD_W         "-" ROW_Y " "
+    . OSD_W         "-" OSD_H " "
+    . "0-"              OSD_H " "
+    . "0-"              ROW_Y " "
+    . UP_X          "-" ROW_Y
 
-; Prime window (pre-loads it into Windows memory, sets region/transparency once)
+; Prime window
 osd.Show("x" g_osdX " y" g_osdY " w" OSD_W " h" OSD_H " NoActivate")
 WinSetTransparent(0, osd)
 WinSetRegion(g_region, osd)
