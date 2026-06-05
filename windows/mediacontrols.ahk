@@ -18,10 +18,10 @@ SetWorkingDir A_ScriptDir
 ;  To find your star key name: right-click the AHK tray icon,
 ;  open "Key History", press the key, look at the VK/SC column.
 ;  Common values for Yoga function keys: F20, F21, F22, Browser_Favorites
-STAR_KEY      := "F20"  ; <─── change this to match your star key
-TIMEOUT_ENTER := 1500   ; ms before mode exits after entering (no key pressed)
-TIMEOUT_ACTION := 800   ; ms before mode exits after each action
-VOL_STEP      := 2      ; Volume_Up/Down presses per arrow keypress
+STAR_KEY       := "^!+k" ; Ctrl+Alt+Shift+K — swap for your star key when sorted
+TIMEOUT_ENTER  := 1500   ; ms before mode exits after entering (no key pressed)
+TIMEOUT_ACTION := 800    ; ms before mode exits after each action
+VOL_STEP       := 2      ; Volume_Up/Down presses per arrow keypress
 
 ; ── OSD APPEARANCE ──────────────────────────────────────────────
 OSD_W    := 420
@@ -187,9 +187,9 @@ DoMedia(action) {
 }
 
 ; ── HOTKEYS ─────────────────────────────────────────────────────
-Hotkey STAR_KEY, StarPress
-
-StarPress(*) {
+; Static hotkey — if you change STAR_KEY to a bare key name (e.g. "F20")
+; switch this back to:  Hotkey STAR_KEY, StarPress
+^!+k:: {
     Critical "On"
     if !g_mode
         EnterMode()
