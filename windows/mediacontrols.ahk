@@ -54,7 +54,7 @@ osd.SetFont("s" OSD_FS " c" COL_FG " Bold", OSD_FONT)
 global lbl_action := osd.Add("Text", "x0 y16 w" OSD_W " h50 Center +0x200", "")
 
 ; Hint bar (small, dimmer)
-osd.SetFont("s" OSD_FS2 " c" COL_DIM " Normal", OSD_FONT)
+osd.SetFont("s" OSD_FS2 " c" COL_DIM, OSD_FONT)
 global lbl_hints := osd.Add("Text", "x0 y" (OSD_H - 28) " w" OSD_W " h22 Center +0x200", "")
 
 ; Compute position: bottom-centre of working area
