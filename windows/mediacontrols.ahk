@@ -18,9 +18,10 @@ SetWorkingDir A_ScriptDir
 ;  To find your star key name: right-click the AHK tray icon,
 ;  open "Key History", press the key, look at the VK/SC column.
 ;  Common values for Yoga function keys: F20, F21, F22, Browser_Favorites
-STAR_KEY   := "F20"     ; <─── change this to match your star key
-TIMEOUT_MS := 2500      ; ms of inactivity before mode exits
-VOL_STEP   := 2         ; Volume_Up/Down presses per arrow keypress
+STAR_KEY      := "F20"  ; <─── change this to match your star key
+TIMEOUT_ENTER := 1500   ; ms before mode exits after entering (no key pressed)
+TIMEOUT_ACTION := 800   ; ms before mode exits after each action
+VOL_STEP      := 2      ; Volume_Up/Down presses per arrow keypress
 
 ; ── OSD APPEARANCE ──────────────────────────────────────────────
 OSD_W    := 420
@@ -63,8 +64,11 @@ global g_osdX  := mL + (g_scrW - OSD_W) // 2
 global g_osdY  := mB - OSD_H - 40          ; final Y when shown
 global g_slideY := g_osdY + 28             ; start Y (slides up from here)
 
-osd.Show("x" g_osdX " y" g_osdY " w" OSD_W " h" OSD_H " Hide NoActivate")
+; Prime the window in Windows' memory so the first real Show is instant,
+; and set transparency once here rather than on every Show call.
+osd.Show("x" g_osdX " y" g_osdY " w" OSD_W " h" OSD_H " NoActivate")
 WinSetTransparent(0, osd)
+osd.Hide()
 
 ; ── ANIMATION STATE ─────────────────────────────────────────────
 global g_alpha     := 0
@@ -103,7 +107,7 @@ AnimTick() {
 }
 
 ; ── OSD HELPERS ─────────────────────────────────────────────────
-ShowAction(action_text, hints_text) {
+ShowAction(action_text, hints_text, timeout_ms) {
     global g_alpha, g_animDir, g_animCurY, g_visible
 
     lbl_action.Value := action_text
@@ -118,7 +122,7 @@ ShowAction(action_text, hints_text) {
     }
     g_animDir := 1
 
-    SetTimer(AutoExit, -TIMEOUT_MS)
+    SetTimer(AutoExit, -timeout_ms)
 }
 
 HideOSD() {
@@ -139,7 +143,7 @@ MakeBar(vol) {
 ; ── MODE MANAGEMENT ─────────────────────────────────────────────
 EnterMode() {
     global g_mode := true
-    ShowAction("◆  MEDIA MODE", "←  prev    →  next    ↑  vol+    ↓  vol−    Space  play")
+    ShowAction("◆  MEDIA MODE", "←  prev    →  next    ↑  vol+    ↓  vol−    Space  play", TIMEOUT_ENTER)
 }
 
 ExitMode() {
@@ -156,37 +160,37 @@ AutoExit() {
 HINTS := "←  prev    →  next    ↑  vol+    ↓  vol−    Space  play"
 
 DoMedia(action) {
-    SetTimer(AutoExit, 0)   ; reset timeout
+    Critical "On"   ; high priority — don't let other threads interrupt mid-action
+    SetTimer(AutoExit, 0)
 
     switch action {
         case "PREV":
             Send "{Media_Prev}"
-            ShowAction("◄◄  PREV TRACK", HINTS)
+            ShowAction("◄◄  PREV TRACK", HINTS, TIMEOUT_ACTION)
         case "NEXT":
             Send "{Media_Next}"
-            ShowAction("NEXT TRACK  ►►", HINTS)
+            ShowAction("NEXT TRACK  ►►", HINTS, TIMEOUT_ACTION)
         case "VOLUP":
             loop VOL_STEP
                 Send "{Volume_Up}"
             vol := Round(SoundGetVolume())
-            ShowAction("VOL  " MakeBar(vol), HINTS)
+            ShowAction("VOL  " MakeBar(vol), HINTS, TIMEOUT_ACTION)
         case "VOLDOWN":
             loop VOL_STEP
                 Send "{Volume_Down}"
             vol := Round(SoundGetVolume())
-            ShowAction("VOL  " MakeBar(vol), HINTS)
+            ShowAction("VOL  " MakeBar(vol), HINTS, TIMEOUT_ACTION)
         case "PLAY":
             Send "{Media_Play_Pause}"
-            ShowAction("▌▌  PLAY / PAUSE", HINTS)
+            ShowAction("▌▌  PLAY / PAUSE", HINTS, TIMEOUT_ACTION)
     }
-
-    SetTimer(AutoExit, -TIMEOUT_MS)
 }
 
 ; ── HOTKEYS ─────────────────────────────────────────────────────
 Hotkey STAR_KEY, StarPress
 
 StarPress(*) {
+    Critical "On"
     if !g_mode
         EnterMode()
     else
