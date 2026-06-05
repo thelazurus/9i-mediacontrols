@@ -8,7 +8,7 @@ SetWorkingDir A_ScriptDir
 ; ║  Press the star key to enter MEDIA MODE, then:              ║
 ; ║    ←  Previous track      →  Next track                     ║
 ; ║    ↑  Play / Pause        ↓  Stop                          ║
-; ║    Space  Play / Pause    Esc  Exit mode                    ║
+; ║    Esc  Exit mode                                           ║
 ; ║                                                              ║
 ; ║  Run this script once, then press the star key and check    ║
 ; ║  View → Key History in the tray icon to find STAR_KEY.      ║
@@ -166,9 +166,6 @@ DoMedia(action) {
         case "STOP":
             Send "{Media_Stop}"
             ShowAction("■  STOP", HINTS, TIMEOUT_ACTION)
-        case "PLAY":
-            Send "{Media_Play_Pause}"
-            ShowAction("▌▌  PLAY / PAUSE", HINTS, TIMEOUT_ACTION)
 
     }
 }
@@ -189,7 +186,6 @@ Left::  DoMedia("PREV")
 Right:: DoMedia("NEXT")
 Up::    DoMedia("PLAYPAUSE")
 Down::  DoMedia("STOP")
-Space:: DoMedia("PLAY")
 Esc:: ExitMode()
 #HotIf
 
