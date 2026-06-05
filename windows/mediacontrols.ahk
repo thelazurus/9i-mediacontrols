@@ -22,9 +22,9 @@ COL_DIM := "7A5200"   ; dim amber — labels
 COL_BDR := "A06A00"   ; tile border
 
 ; ── TILE GEOMETRY ───────────────────────────────────────────────
-TW  := 74
-TH  := 72
-GAP := 5
+TW  := 90
+TH  := 88
+GAP := 6
 
 UP_X  := GAP + TW + GAP          ; centre column x  =  84
 ROW_Y := GAP + TH + GAP          ; bottom row y      =  82
@@ -39,7 +39,7 @@ global g_alpha   := 0
 global g_animDir := 0
 
 ; ── OSD BUILD ───────────────────────────────────────────────────
-global osd := Gui("+AlwaysOnTop -Caption +ToolWindow", "9iMediaOSD")
+global osd := Gui("+AlwaysOnTop -Caption +ToolWindow -DPIScale", "9iMediaOSD")
 osd.BackColor := COL_BG
 
 ; Draw a tile: text controls first (lower z-order), borders last (always on top).
@@ -49,12 +49,12 @@ DrawTile(x, y, symbol, label) {
     global osd, TW, TH, COL_BG, COL_FG, COL_DIM, COL_BDR
 
     ; Symbol — added before borders so borders paint on top at edges
-    osd.SetFont("s24 c" COL_FG " Bold", "Consolas")
-    osd.Add("Text", "x" x " y" (y+8) " w" TW " h34 Center Background" COL_BG, symbol)
+    osd.SetFont("s28 c" COL_FG " Bold", "Consolas")
+    osd.Add("Text", "x" x " y" (y+10) " w" TW " h42 Center Background" COL_BG, symbol)
 
     ; Label
-    osd.SetFont("s8 c" COL_DIM, "Consolas")
-    osd.Add("Text", "x" x " y" (y+TH-22) " w" TW " h18 Center Background" COL_BG, label)
+    osd.SetFont("s10 c" COL_DIM, "Consolas")
+    osd.Add("Text", "x" x " y" (y+TH-26) " w" TW " h22 Center Background" COL_BG, label)
 
     ; Borders last — highest z-order, always visible over text edges
     osd.Add("Text", "x" x        " y" y        " w"  TW " h1  Background" COL_BDR, "")
