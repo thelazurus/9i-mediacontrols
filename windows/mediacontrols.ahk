@@ -7,7 +7,7 @@ SetWorkingDir A_ScriptDir
 ; ║                                                              ║
 ; ║  Press the star key to enter MEDIA MODE, then:              ║
 ; ║    ←  Previous track      →  Next track                     ║
-; ║    ↑  Volume up           ↓  Volume down                    ║
+; ║    ↑  Play / Pause        ↓  Stop                          ║
 ; ║    Space  Play / Pause    Esc  Exit mode                    ║
 ; ║                                                              ║
 ; ║  Run this script once, then press the star key and check    ║
@@ -21,7 +21,6 @@ SetWorkingDir A_ScriptDir
 STAR_KEY       := "^!+k" ; Ctrl+Alt+Shift+K — swap for your star key when sorted
 TIMEOUT_ENTER  := 2000   ; ms before mode exits after entering (no key pressed)
 TIMEOUT_ACTION := 800    ; ms before mode exits after each action
-VOL_STEP       := 2      ; Volume_Up/Down presses per arrow keypress
 
 ; ── OSD APPEARANCE ──────────────────────────────────────────────
 OSD_W    := 420
@@ -131,15 +130,6 @@ HideOSD() {
     g_animDir := -1
 }
 
-; ── VOLUME BAR ──────────────────────────────────────────────────
-MakeBar(vol) {
-    filled := Round(vol / 10)
-    bar := ""
-    loop 10
-        bar .= (A_Index <= filled) ? "█" : "░"
-    return "[" bar "]  " vol "%"
-}
-
 ; ── MODE MANAGEMENT ─────────────────────────────────────────────
 EnterMode() {
     global g_mode := true
@@ -157,7 +147,7 @@ AutoExit() {
 }
 
 ; ── MEDIA COMMANDS ──────────────────────────────────────────────
-HINTS := "← prev  → next  ↑ vol+  ↓ vol−  Space play  Esc exit"
+HINTS := "← prev  → next  ↑ play/pause  ↓ stop  Esc exit"
 
 DoMedia(action) {
     Critical "On"   ; high priority — don't let other threads interrupt mid-action
@@ -170,19 +160,16 @@ DoMedia(action) {
         case "NEXT":
             Send "{Media_Next}"
             ShowAction("NEXT TRACK  ►►", HINTS, TIMEOUT_ACTION)
-        case "VOLUP":
-            loop VOL_STEP
-                Send "{Volume_Up}"
-            vol := Round(SoundGetVolume())
-            ShowAction("VOL  " MakeBar(vol), HINTS, TIMEOUT_ACTION)
-        case "VOLDOWN":
-            loop VOL_STEP
-                Send "{Volume_Down}"
-            vol := Round(SoundGetVolume())
-            ShowAction("VOL  " MakeBar(vol), HINTS, TIMEOUT_ACTION)
+        case "PLAYPAUSE":
+            Send "{Media_Play_Pause}"
+            ShowAction("▌▌  PLAY / PAUSE", HINTS, TIMEOUT_ACTION)
+        case "STOP":
+            Send "{Media_Stop}"
+            ShowAction("■  STOP", HINTS, TIMEOUT_ACTION)
         case "PLAY":
             Send "{Media_Play_Pause}"
             ShowAction("▌▌  PLAY / PAUSE", HINTS, TIMEOUT_ACTION)
+
     }
 }
 
@@ -200,8 +187,8 @@ DoMedia(action) {
 #HotIf g_mode
 Left::  DoMedia("PREV")
 Right:: DoMedia("NEXT")
-Up::    DoMedia("VOLUP")
-Down::  DoMedia("VOLDOWN")
+Up::    DoMedia("PLAYPAUSE")
+Down::  DoMedia("STOP")
 Space:: DoMedia("PLAY")
 Esc:: ExitMode()
 #HotIf
