@@ -10,26 +10,26 @@ SetWorkingDir A_ScriptDir
 ; ╚══════════════════════════════════════════════════════════════╝
 
 ; ── CONFIG ──────────────────────────────────────────────────────
-TIMEOUT_ENTER  := 2000   ; ms before mode exits (no key pressed)
-TIMEOUT_ACTION := 800    ; ms before mode exits after each action
+TIMEOUT_ENTER  := 2000
+TIMEOUT_ACTION := 800
 
-; ── OSD APPEARANCE ──────────────────────────────────────────────
-OSD_FONT := "Lucida Console"
-COL_BG   := "0C0C0C"
-COL_FG   := "FFB000"   ; amber
-COL_DIM  := "7A5200"   ; dim amber for labels
-COL_BDR  := "A06A00"   ; tile border amber
+; ── APPEARANCE ──────────────────────────────────────────────────
+COL_BG   := "0C0C0C"   ; gap / outer background
+COL_TILE := "171717"   ; tile fill (subtly lighter)
+COL_FG   := "FFB000"   ; amber — symbols
+COL_DIM  := "7A5200"   ; dim amber — labels
+COL_BDR  := "A06A00"   ; tile border
 
 ; ── TILE GEOMETRY ───────────────────────────────────────────────
-TW  := 72    ; tile width
-TH  := 70    ; tile height
-GAP := 4     ; gap between/around tiles
+TW  := 74    ; tile width
+TH  := 72    ; tile height
+GAP := 5     ; gap between / around tiles
 
-; Derived layout values
-UP_X  := GAP + TW + GAP                  ; x of up/down/right column  = 80
-ROW_Y := GAP + TH + GAP                  ; y where the bottom row begins = 78
-OSD_W := GAP*4 + TW*3                    ; total width  = 232
-OSD_H := GAP*3 + TH*2                    ; total height = 152
+UP_X  := GAP + TW + GAP               ; x of centre column   =  84
+ROW_Y := GAP + TH + GAP               ; y of bottom row       =  82
+OSD_W := GAP*4 + TW*3                 ; total width           = 242
+OSD_H := GAP*3 + TH*2                 ; total height          = 159
+RGT_X := UP_X + TW + GAP              ; x of right tile       = 163
 
 ; ── STATE ───────────────────────────────────────────────────────
 global g_mode    := false
@@ -41,43 +41,39 @@ global g_animDir := 0
 global osd := Gui("+AlwaysOnTop -Caption +ToolWindow", "9iMediaOSD")
 osd.BackColor := COL_BG
 
-; Draw one tile border (four 1px strips)
-DrawTileBorder(x, y) {
-    global osd, TW, TH, COL_BDR
-    osd.Add("Text", "x" x        " y" y        " w" TW    " h1 Background" COL_BDR, "")
-    osd.Add("Text", "x" x        " y" (y+TH-1) " w" TW    " h1 Background" COL_BDR, "")
-    osd.Add("Text", "x" x        " y" y        " w1 h"    TH " Background"  COL_BDR, "")
-    osd.Add("Text", "x" (x+TW-1) " y" y        " w1 h"    TH " Background"  COL_BDR, "")
+; Draw one complete tile (background + borders + symbol + label)
+DrawTile(x, y, symbol, label) {
+    global osd, TW, TH, COL_TILE, COL_BDR, COL_FG, COL_DIM
+
+    ; Tile fill
+    osd.Add("Text", "x" x " y" y " w" TW " h" TH " Background" COL_TILE, "")
+
+    ; Borders (drawn after fill so they sit on top)
+    osd.Add("Text", "x" x        " y" y        " w"  TW    " h1 Background" COL_BDR, "")
+    osd.Add("Text", "x" x        " y" (y+TH-1) " w"  TW    " h1 Background" COL_BDR, "")
+    osd.Add("Text", "x" x        " y" y        " w1 h"  TH " Background"    COL_BDR, "")
+    osd.Add("Text", "x" (x+TW-1) " y" y        " w1 h"  TH " Background"    COL_BDR, "")
+
+    ; Arrow symbol — Consolas has solid Unicode arrow coverage
+    osd.SetFont("s24 c" COL_FG " Bold", "Consolas")
+    osd.Add("Text", "x" x " y" (y+8) " w" TW " h32 Center Background" COL_TILE, symbol)
+
+    ; Action label
+    osd.SetFont("s8 c" COL_DIM, "Consolas")
+    osd.Add("Text", "x" (x+2) " y" (y+TH-19) " w" (TW-4) " h16 Center Background" COL_TILE, label)
 }
 
-; Place the arrow symbol and action label inside a tile
-DrawTileContent(x, y, symbol, label) {
-    global osd, TW, TH, OSD_FONT, COL_FG, COL_DIM
-    osd.SetFont("s26 c" COL_FG " Bold", OSD_FONT)
-    osd.Add("Text", "x" x " y" (y+10) " w" TW " Center BackgroundTrans", symbol)
-    osd.SetFont("s9 c" COL_DIM, OSD_FONT)
-    osd.Add("Text", "x" x " y" (y+TH-20) " w" TW " Center BackgroundTrans", label)
-}
+DrawTile(UP_X, GAP,   "↑", "play/pause")
+DrawTile(GAP,  ROW_Y, "←", "prev")
+DrawTile(UP_X, ROW_Y, "↓", "stop")
+DrawTile(RGT_X, ROW_Y, "→", "next")
 
-RGT_X := UP_X + TW + GAP   ; x of right tile = 152
-
-DrawTileBorder(UP_X, GAP)           ; ↑  play/pause
-DrawTileBorder(GAP,  ROW_Y)         ; ←  prev
-DrawTileBorder(UP_X, ROW_Y)         ; ↓  stop
-DrawTileBorder(RGT_X, ROW_Y)        ; →  next
-
-DrawTileContent(UP_X, GAP,    "↑", "play/pause")
-DrawTileContent(GAP,  ROW_Y,  "←", "prev")
-DrawTileContent(UP_X, ROW_Y,  "↓", "stop")
-DrawTileContent(RGT_X, ROW_Y, "→", "next")
-
-; ── POSITION & SHAPE ────────────────────────────────────────────
+; ── POSITION & CLIP TO INVERTED-T ───────────────────────────────
 MonitorGetWorkArea(, &mL, &mT, &mR, &mB)
 global g_osdX := mR - OSD_W - 24
 global g_osdY := mB - OSD_H - 24
 
-; Clip to inverted-T polygon: up column on top, full row on bottom
-global g_region := UP_X "-0 "
+global g_region := UP_X        "-0 "
     . (UP_X+TW) "-0 "
     . (UP_X+TW) "-" ROW_Y " "
     . OSD_W     "-" ROW_Y " "
@@ -86,7 +82,7 @@ global g_region := UP_X "-0 "
     . "0-"          ROW_Y " "
     . UP_X      "-" ROW_Y
 
-; Prime window so first show is instant
+; Prime window (pre-loads it into Windows memory, sets region/transparency once)
 osd.Show("x" g_osdX " y" g_osdY " w" OSD_W " h" OSD_H " NoActivate")
 WinSetTransparent(0, osd)
 WinSetRegion(g_region, osd)
@@ -94,7 +90,6 @@ osd.Hide()
 
 ; ── ANIMATION (fade-out only) ────────────────────────────────────
 SetTimer(AnimTick, 16)
-
 AnimTick() {
     global g_alpha, g_animDir, g_visible
     if g_animDir != -1
@@ -134,12 +129,10 @@ EnterMode() {
     global g_mode := true
     ShowOSD(TIMEOUT_ENTER)
 }
-
 ExitMode() {
     global g_mode := false
     HideOSD()
 }
-
 AutoExit() {
     global g_mode := false
     HideOSD()
