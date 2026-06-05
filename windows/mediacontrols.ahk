@@ -16,10 +16,9 @@ TIMEOUT_ACTION := 800
 ; ── APPEARANCE ──────────────────────────────────────────────────
 ; GUI background doubles as tile fill — no separate fill controls needed.
 ; This avoids the z-order repaint issue with overlapping static controls.
-COL_BG  := "131313"   ; tile background (and outer fill, clipped to T by region)
+COL_BG  := "131313"   ; tile background
 COL_FG  := "FFB000"   ; amber — symbols
-COL_DIM := "7A5200"   ; dim amber — labels
-COL_BDR := "A06A00"   ; tile border
+COL_SEP := "2A1800"   ; very dim amber — internal separators
 
 ; ── TILE GEOMETRY ───────────────────────────────────────────────
 TW  := 90
@@ -42,31 +41,24 @@ global g_animDir := 0
 global osd := Gui("+AlwaysOnTop -Caption +ToolWindow -DPIScale", "9iMediaOSD")
 osd.BackColor := COL_BG
 
-; Draw a tile: text controls first (lower z-order), borders last (always on top).
-; Background on each text control matches COL_BG so there are no overlapping
-; fill controls — avoids Windows static control repaint/z-order issues.
-DrawTile(x, y, symbol, label) {
-    global osd, TW, TH, COL_BG, COL_FG, COL_DIM, COL_BDR
-
-    ; Symbol — added before borders so borders paint on top at edges
-    osd.SetFont("s28 c" COL_FG " Bold", "Consolas")
-    osd.Add("Text", "x" x " y" (y+10) " w" TW " h42 Center Background" COL_BG, symbol)
-
-    ; Label
-    osd.SetFont("s10 c" COL_DIM, "Consolas")
-    osd.Add("Text", "x" x " y" (y+TH-26) " w" TW " h22 Center Background" COL_BG, label)
-
-    ; Borders last — highest z-order, always visible over text edges
-    osd.Add("Text", "x" x        " y" y        " w"  TW " h1  Background" COL_BDR, "")
-    osd.Add("Text", "x" x        " y" (y+TH-1) " w"  TW " h1  Background" COL_BDR, "")
-    osd.Add("Text", "x" x        " y" y        " w1 h" TH " Background"   COL_BDR, "")
-    osd.Add("Text", "x" (x+TW-1) " y" y        " w1 h" TH " Background"   COL_BDR, "")
+; Symbol centred in its tile area
+DrawSymbol(x, y, symbol) {
+    global osd, TW, TH, COL_BG, COL_FG
+    osd.SetFont("s34 c" COL_FG " Bold", "Consolas")
+    osd.Add("Text", "x" x " y" (y + (TH-46)//2) " w" TW " h46 Center Background" COL_BG, symbol)
 }
 
-DrawTile(UP_X,  GAP,   "↑", "play/pause")
-DrawTile(GAP,   ROW_Y, "←", "prev")
-DrawTile(UP_X,  ROW_Y, "↓", "stop")
-DrawTile(RGT_X, ROW_Y, "→", "next")
+DrawSymbol(UP_X,  GAP,   "↑")
+DrawSymbol(GAP,   ROW_Y, "←")
+DrawSymbol(UP_X,  ROW_Y, "↓")
+DrawSymbol(RGT_X, ROW_Y, "→")
+
+; Internal separators only — no outer border
+; Horizontal: between ↑ and the bottom row
+osd.Add("Text", "x0 y" (ROW_Y-1) " w" OSD_W " h1 Background" COL_SEP, "")
+; Verticals: between ←/↓ and ↓/→ (bottom row only)
+osd.Add("Text", "x" (UP_X-1)     " y" ROW_Y " w1 h" TH " Background" COL_SEP, "")
+osd.Add("Text", "x" (RGT_X-1)    " y" ROW_Y " w1 h" TH " Background" COL_SEP, "")
 
 ; ── POSITION & CLIP TO INVERTED-T ───────────────────────────────
 MonitorGetWorkArea(, &mL, &mT, &mR, &mB)
